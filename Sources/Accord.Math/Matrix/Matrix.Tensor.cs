@@ -58,8 +58,19 @@ namespace Accord.Math
             int[] dimensions = array.GetLength().Where(x => x != 1).ToArray();
             if (dimensions.Length == 0)
                 dimensions = new[] { 1 };
-            Array res = Array.CreateInstance(array.GetInnerMostType(), dimensions);
-            Buffer.BlockCopy(array, 0, res, 0, res.GetNumberOfBytes());
+
+            Array res;
+            if (array.IsJagged())
+            {
+                res = Jagged.Zeros(array.GetInnerMostType(), dimensions);
+                Copy(array, res);
+            }
+            else
+            {
+                res = Matrix.Zeros(array.GetInnerMostType(), dimensions);
+                Buffer.BlockCopy(array, 0, res, 0, res.GetNumberOfBytes());
+            }
+
             return res;
         }
 
@@ -131,7 +142,12 @@ namespace Accord.Math
         /// <typeparam name="TOutput">The type of the output.</typeparam>
         /// <param name="array">The tensor to be converted.</param>
         /// 
-        public static Array Convert<TOutput>(this Array array)
+        /// <example>
+        /// <code source="Unit Tests\Accord.Tests.Math\Matrix\Matrix.Conversion.cs" region="doc_convert_matrix" />
+        /// <code source="Unit Tests\Accord.Tests.Math\Matrix\Matrix.Conversion.cs" region="doc_convert_jagged" />
+        /// </example>
+        /// 
+        public static Array Convert<TOutput>(this Array array) 
         {
             return Convert(array, typeof(TOutput));
         }
@@ -143,13 +159,20 @@ namespace Accord.Math
         /// <param name="type">The type of the output.</param>
         /// <param name="array">The tensor to be converted.</param>
         /// 
+        /// <example>
+        /// <code source="Unit Tests\Accord.Tests.Math\Matrix\Matrix.Conversion.cs" region="doc_convert_matrix" />
+        /// <code source="Unit Tests\Accord.Tests.Math\Matrix\Matrix.Conversion.cs" region="doc_convert_jagged" />
+        /// </example>
+        /// 
         public static Array Convert(this Array array, Type type)
         {
-            Array r = Array.CreateInstance(type, array.GetLength());
+            Array r = Matrix.Zeros(type, array.GetLength(deep: true));
 
-            foreach (int[] idx in r.GetIndices())
-                r.SetValue(ExtensionMethods.To(array.GetValue(idx), type), idx);
-
+            foreach (int[] idx in r.GetIndices(deep: true))
+            {
+                var value = ExtensionMethods.To(array.GetValue(deep: true, indices: idx), type);
+                r.SetValue(value: value, deep: true, indices: idx);
+            }
             return r;
         }
 
@@ -170,7 +193,7 @@ namespace Accord.Math
             Array r = Array.CreateInstance(type, lengths);
 
             for (int i = 0; i < indices.Length; i++)
-                Set(r, dimension: 0, index: i, value: Get(source, dimension: 0, index: i));
+                Set(r, dimension: dimension, index: i, value: Get(source, dimension: dimension, index: indices[i]));
 
             return r;
         }
@@ -199,11 +222,18 @@ namespace Accord.Math
         /// 
         public static Array Get(this Array source, int dimension, int start, int end)
         {
+            if (dimension != 0)
+            {
+                throw new NotImplementedException("Retrieving dimensions higher than zero has not been implemented" +
+                    " yet. Please open a new issue at the issue tracker if you need such functionality.");
+            }
+
             int[] length = source.GetLength();
             length = length.RemoveAt(dimension);
             int rows = end - start;
             if (length.Length == 0)
-                length = new int[] { rows };
+                length = new int[] { rows
+    };
 
             Type type = source.GetInnerMostType();
             Array r = Array.CreateInstance(type, length);
@@ -240,6 +270,12 @@ namespace Accord.Math
         /// 
         public static void Set(this Array destination, int dimension, int start, int end, Array value)
         {
+            if (dimension != 0)
+            {
+                throw new NotImplementedException("Retrieving dimensions higher than zero has not been implemented" +
+                    " yet. Please open a new issue at the issue tracker if you need such functionality.");
+            }
+
             Type type = destination.GetInnerMostType();
             int rowSize = destination.Length / destination.GetLength(0);
             int length = end - start;
