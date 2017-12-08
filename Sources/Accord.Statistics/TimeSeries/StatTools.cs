@@ -30,6 +30,7 @@ namespace Accord.Statistics.TimeSeries
     using System.Numerics;
     using Accord.Math.Transforms;
     using Accord.Compat;
+    using Accord.Statistics;
 
     /// <summary>
     ///   Static tools for time series analysis (e.g. <see cref="AutoCorrelationFunction(double[], int)">ACF</see>,
@@ -113,19 +114,87 @@ namespace Accord.Statistics.TimeSeries
 
 
         /// <summary>
-        ///   Calculates Periodogram of a given vector of type double based on Welch method.
+        ///   Calculates Ljung-Box Q Statistic. Based on Python StatsModels q_stat function.
         /// </summary>
         /// 
-        /// <param name="vector">
-        ///   A vector of observations whose Periodogram will be calculated. It is assumed that
+        /// <param name="x">
+        ///   Array of autocorrelation coefficients. It is assumed that
         ///   the vector is a 1-D array of type double
-        /// </param> 
-        /// 
+        /// </param>
+        /// <param name="nobs">
+        ///    Number of observations in the entire sample (ie., not just the length
+        ///    of the autocorrelation function results.
+        /// </param>
+        /// <param name="type">
+        ///     
+        /// </param>
         /// <returns>
-        ///   Returns a vector of type double giving the periodogram of the vector.
+        ///   Returns a tuple of q-stat and p-value:
+        ///   q-stat: array of double, Ljung-Box Q-statistic for autocorrelation parameters
+        ///   p-value : array of double of the Q-statitic
         /// </returns>
 
-        public static double[] Periodogram(double[] vector)
+        public struct QStatResult
+        {
+            public double[] qstat;
+            public double[] pvalue;
+        }
+        public static QStatResult q_stat(double[] x, int nobs, string type = "ljungbox")
+        {
+            if (nobs <= 0)
+                throw new ArgumentOutOfRangeException("nobs", "Num Obs must be positive.");
+
+            int xlength = x.Length;
+            int xlength2 = xlength + 1;
+            double[] ret = new double[xlength];
+
+            if (type == "ljungbox")
+            {
+
+                double[] cumsum = new double[xlength];
+                for (int i = 1; i <= (xlength2); i++)
+                {
+                    cumsum[i - 1] = (1 / (nobs - i)) * (x[i - 1] * x[i - 1]);
+                }
+                double[] csum = Accord.Math.Matrix.CumulativeSum(cumsum);
+
+                for (int i = 0; i < xlength; i++)
+                {
+                    ret[i] = nobs * (nobs + 2) * cumsum[i];
+                }
+            }
+
+            double[] chi2sf = new double[xlength];
+            var ChiSq = new Accord.Statistics.Distributions.Univariate.ChiSquareDistribution(degreesOfFreedom: xlength2);
+            for (int i = 0; i < xlength; i++)
+            {
+                chi2sf[i] = ChiSq.ComplementaryDistributionFunction(x: ret[i]);
+            }
+
+            var result = new QStatResult
+            {
+                qstat = ret,
+                pvalue = chi2sf
+            };
+            return result;
+        }
+    
+
+
+    /// <summary>
+    ///   Calculates Periodogram of a given vector of type double based on Welch method.
+    /// </summary>
+    /// 
+    /// <param name="vector">
+    ///   A vector of observations whose Periodogram will be calculated. It is assumed that
+    ///   the vector is a 1-D array of type double
+    /// </param> 
+    /// 
+    /// <returns>
+    ///   Returns a vector of type double giving the periodogram of the vector.
+    /// </returns>
+
+    public static double[] Periodogram(double[] vector)
         {
             int nTime = vector.Length;
             double[] pwr = new double[vector.Length];
