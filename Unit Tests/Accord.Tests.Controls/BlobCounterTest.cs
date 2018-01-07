@@ -38,7 +38,7 @@ namespace Accord.Tests.Imaging
         [Test]
         public void blobcounter_test()
         {
-            string basePath = Path.Combine(NUnit.Framework.TestContext.CurrentContext.WorkDirectory, "Resources");
+            string basePath = Path.Combine(NUnit.Framework.TestContext.CurrentContext.TestDirectory, "Resources");
 
             #region doc_process
             // Load an example image containing blobs (such the sample from the Blob Detection sample applications)
@@ -85,7 +85,7 @@ namespace Accord.Tests.Imaging
             image.Save(Path.Combine(basePath, "test.png"));
             #endregion
 
-            Assert.AreEqual(0, blobs.Length);
+            Assert.AreEqual(25, blobs.Length);
         }
     }
 }
